@@ -67,6 +67,8 @@ void MainWindow::readData(const QString &filePath){
         ui->graphic->graph(1)->setData(time,current);
         ui->graphic->graph(1)->setPen(QPen(Qt::yellow));
         ui->graphic->rescaleAxes();
+
+
         ui->graphic->replot();
 
         irms=PRMS(current,time);
