@@ -8,11 +8,8 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    time.resize(100);
-    volts.resize(100);
-    current.resize(100);
 
-    QString filePath = "C:/Users/Jony/Desktop/parcial 2 de info2/vi_1.dat";
+    QString filePath = "C:/Users/Jony/Desktop/parcial 2 de info2/vi_3.dat";
         readData(filePath);
 
 }
@@ -30,234 +27,118 @@ void MainWindow::readData(const QString &filePath){
 
     QDataStream in(&file);
     in.setByteOrder(QDataStream::LittleEndian);
+    int i=0;
+    QVector <double>time;
+    QVector <double>volt;
+    QVector <double>current;
+    double ang,vrms,irms,P;
+    while (!in.atEnd()) {
+        //qDebug()<<"si se abrio";
 
-    QVector<double>timer;
-    QVector<double>voltss;
-    QVector<double>currents;
-    double vmax,vmin,imin,imax;
-    int d=0,g=0,f=0,h=0,dat=0;
-        int i=0;
-        while (!in.atEnd()) {
-            //qDebug()<<"si se abrio";
-
-            double values;
+        double values;
             in >> values; // Leer un double
             if(i==0){
-               timer.append(values);
-               dat++;
+               time.append(values);
             }
             if(i==1){
-                voltss.append(values);
-                if(f==0){
-                    vmin=values;
-                    f=1;
-                }
-                else{
-                    if(vmin>=values){
-                        vmin=values;
-                    }
-                }
-                if(h==0){
-                    vmax=values;
-                    h=1;
-                }
-                else{
-                    if(vmax<=values){
-                        vmax=values;
-                    }
-                }
-
+                volt.append(values);
             }
             if(i==2){
-                currents.append(values);
-                if(d==0){
-                    imin=values;
-                    d=1;
-                }
-                else{
-                    if(imin>=values){
-                        imin=values;
-                    }
-                }
-                if(g==0){
-                    imax=values;
-                    g=1;
-                }
-                else{
-                    if(imax<=values){
-                        imax=values;
-                    }
-                }
-
+                current.append(values);
             }
-            i=i+1;
+            i++;
             if(i==3){
                 i=0;
             }
 
         }
-
+        int dat=time.size();
         file.close();
-        timer.resize(dat);
-        voltss.resize(dat);
-        currents.resize(dat);
-        i=0;
-            // Imprimir los valores
-        qDebug()<<"tiempo";
-        for (double val : timer) {
-            qDebug() <<"t ="<< val;
-            timer[i]=val;
-            i=i+1;
-        }
-        i=0;
-        qDebug()<<"potencia";
-        for (double val : volts) {
-            qDebug() <<"V ="<< val;
-            volts[i]=val;
-        }
-        i=0;
-        for (double val:current) {
-            qDebug()<<"I="<< val;
-            currents[i]=val;
-        }
-        qDebug()<< "Imax="<<imax<<"Vmax="<<vmax;
-
-        qDebug()<< "Imin="<<imin<<"Vmin="<<vmin;
+        time.resize(dat);
+        volt.resize(dat);
+        current.resize(dat);
 
         ui->graphic->addGraph();
-        ui->graphic->graph(0)->setData(timer,voltss);
+        ui->graphic->graph(0)->setData(time,volt);
+        ui->graphic->graph(0)->setPen(QPen(Qt::green));
+        ui->graphic->graph(0)->setBrush(QBrush(Qt::blue));
 
         ui->graphic->addGraph();
-        ui->graphic->graph(1)->setData(timer,currents);
-
+        ui->graphic->graph(1)->setData(time,current);
+        ui->graphic->graph(1)->setPen(QPen(Qt::yellow));
         ui->graphic->rescaleAxes();
         ui->graphic->replot();
 
-    PRMS(current,time,volts,dat);
+        irms=PRMS(current,time);
+        vrms=PRMS(volt,time);
+
+        ang=ANG(current,time);
+        ang=M_PI*ang/180;
+
+        P=vrms*irms*cos(ang);
+
+        qDebug()<<"PRMS " << P;
+
+        ui->Vrms->setText(QString::number(vrms));
+
+        ui->Irms->setText(QString::number(irms));
+
+        ui->Pot->setText(QString::number(P));
 }
 
-void MainWindow::PRMS(QVector<double> &current, QVector<double> &time, QVector<double> &volts,int dat){
+double MainWindow::PRMS(QVector <double>current,QVector <double>time){
 
-    int f=0,h=0,d=0,c=0,i=0,pp=0;
-    double vmin,vmax,imin,imax,tvmin,tvmax,timin,timax;
-    double vrms[dat],irms[dat],trms[dat];
+    int cM=posM(current);
+    int cm=posm(current);
 
 
-    for(double val:volts){
-        vrms[pp]=val;
-
-        if(f==0){
-            vmin=val;
-            f=1;
-        }
-        else{
-            if(vmin>=val){
-                vmin=val;
-                f=f+1;
-            }
-        }
-        if(h==0){
-            vmax=val;
-            h=1;
-        }
-        else{
-            if(vmax<=val){
-                vmax=val;
-                h=h+1;
-            }
-        }
-        pp++;
+    double z=0;
+    for (int i=cM;i<=cm;i++) {
+        z+=current[i]*current[i]*(time[i+1]-time[i]);
     }
-    pp=0;
-    for(double val:time){
-        trms[pp]=val;
-        if(d==h){
-            tvmin=val;
-        }
-        d++;
-        if(c==f){
-            tvmax=val;
-        }
-        c++;
+    z=z/(time[cm]-time[cM]);
+    z=sqrt(z);
+
+    return z;
+
+}
+
+double MainWindow::ANG(QVector <double>current,QVector <double>time){
+
+    double curM=0;
+    int i=0;
+    while(curM>=current[i]){
+        i++;
     }
-    f=0;h=0;d=0;c=0,pp=0;
-    for(double val:current){
-        irms[pp]=val;
-        if(f==0){
-            imin=val;
-            f=1;
-        }
-        else{
-            if(imin>=val){
-                imin=val;
-                f=f+1;
-            }
-        }
-        if(h==0){
-            imax=val;
-            h=1;
-        }
-        else{
-            if(imax<=val){
-                imax=val;
-                h=h+1;
-            }
-        }
+    curM=(-2*current[i-1]*time[i-1]+current[i-1]*time[i]+current[i]*time[i-1])/(current[i-1]-current[i]);
+    return curM;
+}
+
+
+int MainWindow::posM(QVector<double> val){
+    double d=0,c=val[0];
+    int i=0;
+    for(double vor:val){
+        if(c<=vor)
+            c=vor;
     }
-    for(double val:time){
-        if(d==h){
-            timin=val;
-        }
-        d++;
-        if(c==f){
-            timax=val;
-        }
-        c++;
+    while(d!=c){
+        d=val[i];
+        i++;
     }
-    double x_supr=1e-9;
-    double xmin=vrms[1];
-    double ymin=irms[1];
-    double tcero=trms[0];
-    int w=0;
-    double icero=irms[0];
-    double angulo;
-    while(xmin>=0){
-        xmin=vrms[w];
-        w++;
+    return i-1;
+}
+
+int MainWindow::posm(QVector<double> val){
+    double d=0,c=val[0];
+    int i=0;
+    for(double vor:val){
+        if(c>=vor)
+            c=vor;
     }
-    int jj=0;
-    while(ymin<=0){
-        ymin=irms[jj];
-        jj++;
+    while(d!=c){
+        d=val[i];
+        i++;
     }
-
-    while(icero<=0){
-        icero=icero+x_supr;
-        tcero=tcero+x_supr;
-    }
-
-    angulo= 180/(0.01*tcero);
-    double angulor;
-    angulor=angulo*M_PI/180;
-
-
-
-
-    double PRms,VRms,IRms,imms,iMms,vmms,vMms,tvmid,timid;
-
-    vmms=pow(vmax,2)/2;
-    imms=pow(imax,2)/2;
-    iMms=pow(imin,2)/2;
-    vMms=pow(vmin,2)/2;
-    tvmid=1/(tvmax-tvmin);
-    timid=1/(timax-timin);
-    VRms=sqrt((vmms-vMms)/tvmid);
-    IRms=sqrt((imms-iMms)/timid);
-
-    PRms=VRms*IRms*cos(angulor);
-
-
-    qDebug()<< "VRms = "<<VRms<< "IRms = "<<IRms<<"PRms = "<<PRms;
-
-
+    return i-1;
 }

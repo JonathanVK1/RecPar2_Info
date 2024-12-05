@@ -23,12 +23,17 @@ public:
 
 public:
     void readData(const QString &filePath);
-    void PRMS(QVector<double>&current,QVector<double>&time,QVector<double>&volts,int dat);
+    double PRMS(QVector <double>current,QVector <double>time);
+    int posM(QVector<double>val);
+    int posm(QVector<double>val);
+    double ANG(QVector <double>current,QVector <double>time);
 
 private:
     Ui::MainWindow *ui;
     mu::Parser parser;
-    QVector<double> time,volts,current  ;
+    QVector<double> time;
+    QVector<double> volt;
+    QVector<double> current;
 
 };
 #endif // MAINWINDOW_H
