@@ -39,7 +39,7 @@ public slots:
 private:
     Ui::MainWindow *ui;
     mu::Parser parser;
-    QVector<double> x,y,a ;
+    QVector<double> x,y,a,xgraph ;
 
 };
 #endif // MAINWINDOW_H

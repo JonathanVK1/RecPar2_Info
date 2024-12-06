@@ -123,9 +123,7 @@ void MainWindow::ploter(){
     //if(ui->graphic->graphCount()==0){
     ui->graphic->addGraph();
     ui->graphic->graph(0)->setData(x,y);
-
-    ui->graphic->addGraph();
-    ui->graphic->graph(1)->setData(x,a);
+    ui->graphic->graph(0)->setBrush(QBrush(Qt::blue));
 
     ui->graphic->rescaleAxes();
     ui->graphic->replot();
