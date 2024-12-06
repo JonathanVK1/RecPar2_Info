@@ -189,6 +189,7 @@ void MainWindow::save(){
         }*/
 
 
+
         out<<"hola";
         qDebug()<<"entro aqui";
     }
