@@ -12,7 +12,11 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
+struct Root{
+    bool valid;
+    double value;
 
+};
 
 class MainWindow : public QMainWindow
 {
@@ -22,20 +26,20 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+private:
+    double data();
+    double f(double x);
+    double df(double x);
 
-public:
-    void readData(const QString &filePath);
-    double PRMS(QVector <double>current,QVector <double>time);
-    int posM(QVector<double>val);
-    int posm(QVector<double>val);
-    double ANG(QVector <double>current,QVector <double>time);
+
+public slots:
+    void ploter();
+    void save();
 
 private:
     Ui::MainWindow *ui;
     mu::Parser parser;
-    QVector<double> time;
-    QVector<double> volt;
-    QVector<double> current;
+    QVector<double> x,y,a ;
 
 };
 #endif // MAINWINDOW_H

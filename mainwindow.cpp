@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QTextStream>
 #include "muParser.h"
 #include <math.h>
 
@@ -8,9 +9,18 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    x.resize(10);
+    y.resize(10);
+    a.resize(10);
+    connect(ui->Graficar,
+            SIGNAL(clicked()),
+            this,
+            SLOT(ploter()));
 
-    QString filePath = "C:/Users/Jony/Desktop/parcial 2 de info2/vi_3.dat";
-        readData(filePath);
+    connect(ui->Savedata,
+            SIGNAL(clicked()),
+            this,
+            SLOT(save()));
 
 }
 
@@ -18,129 +28,172 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
-void MainWindow::readData(const QString &filePath){
+void MainWindow::ploter(){
+    // definir valores de x
 
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        qDebug() << "No se pudo abrir el archivo.";
+    double xmin= ui->Xmin->text().toDouble();
+    double xmax= ui->Xmax->text().toDouble();
+    double dx=1e-4;
+    double xpr= ui->Xbcero->text().toDouble();
+    double xsc= ui->Xbuno->text().toDouble();
+    double diff=1e-4,xmiddle,ymiddle;
+    double xprmin=xmin,xscmax=xmin,H1=0,H2=0;
+    int g=0,gg=0,tab=0;
+    //double delta=0;
+
+    int N=(xmax-xmin)/dx;
+    x.resize(N);
+    y.resize(N);
+
+    for (int i=0;i<N;i++) {
+        x[i]=xmin+double(i)*dx;
     }
+    parser.DefineVar(L"x",x.data());
 
-    QDataStream in(&file);
-    in.setByteOrder(QDataStream::LittleEndian);
-    int i=0;
-    QVector <double>time;
-    QVector <double>volt;
-    QVector <double>current;
-    double ang,vrms,irms,P;
-    while (!in.atEnd()) {
-        //qDebug()<<"si se abrio";
 
-        double values;
-            in >> values; // Leer un double
-            if(i==0){
-               time.append(values);
-            }
-            if(i==1){
-                volt.append(values);
-            }
-            if(i==2){
-                current.append(values);
-            }
-            i++;
-            if(i==3){
-                i=0;
-            }
+    //darle valor a F(x)
+
+    parser.SetExpr(ui->Fx->text().toStdWString());
+    parser.Eval(y.data(),y.size());
+
+    double ymin=f(xpr);
+    double ymax=f(xsc);
+
+    if(ymin*ymax<0){
+        while(xsc-xpr>diff){
+
+        xmiddle=(xpr+xsc)/2;
+        ymiddle=f(xmiddle);
+        if(ymin*ymiddle<0){
+            xsc=xmiddle;
 
         }
-        int dat=time.size();
-        file.close();
-        time.resize(dat);
-        volt.resize(dat);
-        current.resize(dat);
+        else{
+            xpr=xmiddle;
+            ymin=f(xpr);
+        }
+        }
+        tab=1;
+    }
+    else{
+        qDebug()<<"no hay raices en este intervalo o hay mas de una";
+    }
 
-        ui->graphic->addGraph();
-        ui->graphic->graph(0)->setData(time,volt);
-        ui->graphic->graph(0)->setPen(QPen(Qt::green));
-        ui->graphic->graph(0)->setBrush(QBrush(Qt::blue));
-
-        ui->graphic->addGraph();
-        ui->graphic->graph(1)->setData(time,current);
-        ui->graphic->graph(1)->setPen(QPen(Qt::yellow));
-        ui->graphic->rescaleAxes();
+    if(tab==1){
+        qDebug()<<"xmiddle "<<xmiddle;
+        ui->xmiddle->setText(QString::number(xmiddle));
+    }
 
 
-        ui->graphic->replot();
 
-        irms=PRMS(current,time);
-        vrms=PRMS(volt,time);
+    while (xprmin<=xpr) {
+        xprmin=xprmin+dx;
+        g++;
+    }
+    while (xscmax<=xsc) {
+        xscmax=xscmax+dx;
+        gg++;
 
-        ang=ANG(current,time);
-        ang=M_PI*ang/180;
+    }
+    int h=gg-g;
+    a.resize(h);
+    for (int i=g;i<gg;i++) {
+       // delta=x[i-1]-x[i];
+        //a+=y[i]*dx;
+        H1=y[i+1]-y[i];
+        H2=y[i];
+        a[i]=((dx*H1)/2)+(dx*H2);
 
-        P=vrms*irms*cos(ang);
 
-        qDebug()<<"PRMS " << P;
+    }
 
-        ui->Vrms->setText(QString::number(vrms));
+    double X=ui->Xncero->text().toDouble();
 
-        ui->Irms->setText(QString::number(irms));
+    for (int i=0;i<100;i++) {
+        double fx=f(X);
+        double dfx=df(X);
+        double x_next=X-(fx/dfx);
+        X=x_next;
+    }
 
-        ui->Pot->setText(QString::number(P));
+    qDebug()<<"raiz newton"<<X;
+    ui->xraiz->setText(QString::number(X));
+
+    // cantidad de graficos
+    //if(ui->graphic->graphCount()==0){
+    ui->graphic->addGraph();
+    ui->graphic->graph(0)->setData(x,y);
+
+    ui->graphic->addGraph();
+    ui->graphic->graph(1)->setData(x,a);
+
+    ui->graphic->rescaleAxes();
+    ui->graphic->replot();
+    //}
+    //calcular y realizar el grafico del area debajo de la curva con un boton
+
 }
 
-double MainWindow::PRMS(QVector <double>current,QVector <double>time){
+double MainWindow:: df(double x){
 
-    int cM=posM(current);
-    int cm=posm(current);
-
-
-    double z=0;
-    for (int i=cM;i<=cm;i++) {
-        z+=current[i]*current[i]*(time[i+1]-time[i]);
-    }
-    z=z/(time[cm]-time[cM]);
-    z=sqrt(z);
-
-    return z;
+    double dx=1e-9;
+    double dy=f(x+dx)-f(x);
+    return dy/dx;
 
 }
 
-double MainWindow::ANG(QVector <double>current,QVector <double>time){
+double MainWindow:: f(double x){
 
-    double curM=0;
-    int i=0;
-    while(curM>=current[i]){
-        i++;
-    }
-    curM=(-2*current[i-1]*time[i-1]+current[i-1]*time[i]+current[i]*time[i-1])/(current[i-1]-current[i]);
-    return curM;
+    mu::Parser parser;
+    parser.DefineVar(L"x",&x);
+    parser.SetExpr(ui->Fx->text().toStdWString());
+    double y=parser.Eval();
+    return y;
 }
 
 
-int MainWindow::posM(QVector<double> val){
-    double d=0,c=val[0];
-    int i=0;
-    for(double vor:val){
-        if(c<=vor)
-            c=vor;
-    }
-    while(d!=c){
-        d=val[i];
-        i++;
-    }
-    return i-1;
-}
+void MainWindow::save(){
 
-int MainWindow::posm(QVector<double> val){
-    double d=0,c=val[0];
-    int i=0;
-    for(double vor:val){
-        if(c>=vor)
-            c=vor;
+
+    double dx=1e-4;
+    int xtotal;
+    double xmin=ui->Xmin->text().toDouble();
+    double xmax=ui->Xmax->text().toDouble();
+
+
+    if(xmin>=0){
+        xtotal=(xmax+xmin)/dx;
     }
-    while(d!=c){
-        d=val[i];
-        i++;
+    else{
+        xtotal=(xmax-xmin)/dx;
     }
-    return i-1;
+    double Fx[xtotal];
+
+    for(int i=0;i<xtotal;i++){
+        Fx[i]=f(xmin);
+        xmin+=dx;
+    }
+
+    QString filename="datos.txt";
+
+    QFile file(filename);
+
+    if(file.open(QIODevice::WriteOnly|QIODevice::Text)){
+        QTextStream out(&file);
+/*
+        for (int i=0;i<xtotal;i++) {
+
+            out<<Fx[i];
+            out<< " ";
+
+        }*/
+        out<<"hola";
+        qDebug()<<"entro aqui";
+    }
+
+    file.close();
+
+
+
+
 }
